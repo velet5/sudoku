@@ -1,0 +1,100 @@
+:root {
+    --cell-size: 9vmin;
+    --hint-size: calc(var(--cell-size) / 3);
+    --bold-color: black;
+    --bold-stroke: 2px;
+}
+
+* {
+    box-sizing: border-box;
+    user-select: none;
+}
+
+#button-list {
+    margin: 0 10vmin;
+}
+
+.digit {
+    display: inline-block;
+    width: 5vmin;
+    height: 5vmin;
+    margin: 0.5vmin;
+}
+
+.board {
+    margin: 10px;
+    position: relative;
+    width: calc(var(--cell-size) * 9 + 4px);
+    height: calc(var(--cell-size) * 9 + 4px);
+    border: var(--bold-stroke) solid var(--bold-color);
+}
+
+.cell {
+    position: absolute;
+    display: inline-block;
+    width: var(--cell-size);
+    height: var(--cell-size);
+    border: 0.5px solid rgba(0.5, 0.5, 0.5, 0.5);
+    font-size: calc(var(--cell-size) / 2);
+    line-height: var(--cell-size);
+    text-align: center;
+}
+
+.cell.l {
+    border-left: var(--bold-stroke) solid var(--bold-color);
+}
+
+.cell.r {
+    border-right: var(--bold-stroke) solid var(--bold-color);
+}
+
+.cell.t {
+    border-top: var(--bold-stroke) solid var(--bold-color);
+}
+
+.cell.b {
+    border-bottom: var(--bold-stroke) solid var(--bold-color);
+}
+
+.cell.d {
+    background-color: bisque;
+}
+
+
+.hint {
+    position: absolute;
+    width: var(--hint-size);
+    height: var(--hint-size);
+    z-index: 1;
+}
+
+.hint.enabled::before {
+    position: absolute;
+    content: '';
+    top: 0;
+    left: 0;
+    display: inline-block;
+    width: 1vmin;
+    height: 1vmin;
+    margin: 1vmin;    
+    background-color: #777;
+    border-radius: 50%;
+}
+
+.hint:hover {
+    background-color: rgba(0.5, 0.5, 0.5, 0.2);
+}
+
+.number {
+    z-index: 2;
+    position: relative;
+}
+
+/* .cell.hightlight {
+    box-shadow: 0 0 0.4vmin 0.2vmin rgb(250, 92, 132) inset;
+} */
+
+.cell.active {
+    background-color: darkseagreen;
+}
+
