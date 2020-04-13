@@ -42,9 +42,9 @@ class Cell {
 }
 
 class Zone {
-    constructor(cells, isDiagonal) {
+    constructor(cells, isDiagonal, id) {
         this.cells = cells
-        this.id = cells.map(c => `${c.x}:${c.y}`).reduce((a, b) => `${a} ${b}`)
+        this.id = id || cells.map(c => `${c.x}:${c.y}`).reduce((a, b) => `${a} ${b}`)
         this.isDiagonal = !!isDiagonal
     }
 
@@ -81,11 +81,11 @@ class Board {
         this.zones = []
 
         for (let r = 1; r <= 9; r += 1) {
-            this.zones.push(new Zone(cells.filter(cell => cell.y == r)))
+            this.zones.push(new Zone(cells.filter(cell => cell.y == r), false, "row " + r))
         }
 
         for (let c = 1; c <= 9; c += 1) {
-            this.zones.push(new Zone(cells.filter(cell => cell.x == c)))
+            this.zones.push(new Zone(cells.filter(cell => cell.x == c), false, "column " + c))
         }
 
         for (let i = 0; i < 3; i += 1) {
@@ -95,13 +95,13 @@ class Board {
                 const t = j * 3 + 1
                 const b = j * 3 + 3 + 1
                 const z = cells.filter(c => c.x >= l && c.x < r && c.y >= t && c.y < b)
-                this.zones.push(new Zone(z))
+                this.zones.push(new Zone(z, false, "cell " + (i * 3 + j + 1)))
             }
         }
 
         if (isDiagonals) {
-            this.zones.push(new Zone(cells.filter(cell => cell.x == cell.y), true))
-            this.zones.push(new Zone(cells.filter(cell => cell.x == (10 - cell.y)), true))
+            this.zones.push(new Zone(cells.filter(cell => cell.x == cell.y), true, "diagonal 1"))
+            this.zones.push(new Zone(cells.filter(cell => cell.x == (10 - cell.y)), true, "diagonal 2"))
         }
 
         this.diagonals = this.zones.filter(z => z.isDiagonal)
@@ -153,7 +153,7 @@ class BoardViewModel {
      */
     constructor(board, cells) {
         this.board = board
-        this.cells = cells       
+        this.cells = cells
     }
 
     /**
@@ -165,12 +165,24 @@ class BoardViewModel {
     }
 
     addHint(cell, value) {
-        const c = this.cells.find(c => !c.cell.isPrefilled && c.cell.x == cell.x && c.cell.y == cell.y)
-        
+        const c = this.cellViewOf(cell)
+
         if (c) {
             cell.addHint(value)
             c.view.hints[value - 1].classList.add("enabled")
         }
+    }
+
+    addValue(cell, value) {
+        cell.value = value
+        const c = this.cellViewOf(cell)
+        if (c) {
+            c.view.number.innerText = value
+        }
+    }
+
+    cellViewOf(cell) {
+       return this.cells.find(c => !c.cell.isPrefilled && c.cell.x == cell.x && c.cell.y == cell.y)
     }
 }
 
@@ -279,6 +291,20 @@ const render = (id, board, event) => {
     return new BoardViewModel(board, cellVMs)
 }
 
+class Only {
+    /**
+     * @param {Array<Cell>} cells 
+     * @param {String} zoneId 
+     * @param {Number} value 
+     */
+    constructor(cells, zoneId, value) {
+        this.cells = cells
+        this.zoneId = zoneId
+        this.value = value
+    }
+
+}
+
 const play = () => {
     const cells = []
 
@@ -342,16 +368,22 @@ const play = () => {
 
         board.zones.forEach(fillZone)
 
+        const onlies = []
+
         board.zones.forEach(zone => {
             Values.forEach(value => {
                 const cells = zone.available(value)
                 if (cells.length < 2) return;
 
-                if (!zone.isDiagonal && 
-                    cells.length == 2 && 
+                if (cells.length == 2 || cells.length == 3) {
+                    onlies.push(new Only(cells, zone.id, value))
+                }
+
+                if (!zone.isDiagonal &&
+                    cells.length == 2 &&
                     cells.every(c => board.diagonals.some(z => z.contains(c))) &&
                     !cells.some(c => c.is(board.center))) {
-                       vm.addHint(board.center, value)
+                    vm.addHint(board.center, value)
                 }
 
                 if (!zone.isDiagonal && cells.length == 2 && cells.every(c => board.isOnDiagonal(c))) {
@@ -363,7 +395,7 @@ const play = () => {
                         d.cells.forEach(cell => {
                             if (!cells.some(c => c.is(cell))) {
                                 if (cell.x == a.x || cell.x == b.x || cell.y == a.y || cell.y == b.y) {
-                                   vm.addHint(cell, value)
+                                    vm.addHint(cell, value)
                                 }
                             }
                         })
@@ -372,7 +404,7 @@ const play = () => {
 
                 if (cells.length == 2 && cells.some(c => board.isOnDiagonal(c)) && cells.some(c => !board.isOnDiagonal(c))) {
                     const a = cells.find(c => board.isOnDiagonal(c))
-                    const b = cells.find(c => !board.isOnDiagonal(c))                   
+                    const b = cells.find(c => !board.isOnDiagonal(c))
 
                     let x
                     let y
@@ -383,7 +415,7 @@ const play = () => {
                             y = a.y - (a.x - b.x)
                         } else {
                             x = b.x
-                            y = a.y - (b.x - a.x)                      
+                            y = a.y - (b.x - a.x)
                         }
                     } else {
                         if (a.x == a.y) {
@@ -392,7 +424,7 @@ const play = () => {
                         } else {
                             y = b.y
                             x = a.x - (b.y - a.y)
-                        } 
+                        }
                     }
 
                     const c = board.cells.find(c => c.x == x && c.y == y && !cells.some(c2 => c2.is(c)))
@@ -415,6 +447,57 @@ const play = () => {
                     })
             })
         })
+        const two = onlies.filter(o => o.cells.length == 2)
+        const three = onlies.filter(o => o.cells.length == 3)
+
+        two.forEach(a => {
+            two.forEach(b => {
+                if (a.cells.every(ac => b.cells.some(bc => bc.is(ac))) &&
+                    b.cells.every(bc => a.cells.some(ac => ac.is(bc))) &&
+                    (a.value != b.value)) {
+                    Values.forEach(v => {
+                        if (v != a.value && v != b.value) {
+                            a.cells.forEach(cell => vm.addHint(cell, v))
+                        }
+                    })
+                }
+            })
+        })
+
+        three.forEach(a => {
+            two.forEach(b => {
+                three.forEach(c => {
+                    if (a.cells.every(ac => b.cells.some(bc => bc.is(ac))) &&
+                        b.cells.every(bc => a.cells.some(ac => ac.is(bc))) &&
+                        c.cells.every(cc => a.cells.some(ac => ac.is(cc)))
+                        (a.value != b.value) && (a.value != c.value) && (b.value != c.value)) {
+                            Values.forEach(v => {
+                                if (v != a.value && v != b.value && v != c.value) {
+                                    console.log("Impossilbe")
+                                    a.cells.forEach(cell => vm.addHint(cell, v))
+                                }
+                            })
+                    }
+                })
+            })
+        })
+
+        board.cells.forEach(cell => {
+            if (cell.available.length == 1) {
+                vm.addValue(cell, cell.available[0])
+            }
+        })
+
+        board.zones.forEach(zone => {
+            Values.forEach(value => {
+                if (zone.cells.filter(cell => !cell.value && cell.available.includes(value)).length == 1) {
+                    console.log("x", zone.id, value)
+                    const cell = zone.cells.find(cell => cell.available.includes(value))
+                    vm.addValue(cell, value)
+                }
+            })
+        })
+
     }
 
     const fillButton = document.getElementById("fill-button")
